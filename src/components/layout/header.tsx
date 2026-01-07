@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Avatar } from "@/components/ui/avatar";
+import { ThemeToggle } from "@/components/theme";
 import { VercelLogo, Home, Settings } from "@/components/ui/icons";
 
 interface HeaderProps {
@@ -59,6 +60,11 @@ export function Header({ user }: HeaderProps) {
                   </Link>
                 );
               })}
+
+              {/* Theme Toggle */}
+              <div className="ml-2 pl-3 border-l border-border">
+                <ThemeToggle />
+              </div>
 
               {/* User Avatar */}
               <div className="ml-2 pl-3 border-l border-border">
