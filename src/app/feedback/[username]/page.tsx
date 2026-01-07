@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams, usePathname } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -8,7 +9,6 @@ import { Avatar } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Toggle } from "@/components/ui/toggle";
-import { Badge } from "@/components/ui/badge";
 import {
   VercelLogo,
   ThumbsUp,
@@ -20,36 +20,128 @@ import {
 
 type Sentiment = "positive" | "neutral" | "negative" | null;
 
-// Mock user data
-const mockUser = {
-  name: "Sarah Chen",
-  username: "sarah-chen",
-  role: "Solutions Engineer",
-  avatarUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=sarah",
-};
+interface User {
+  id: string;
+  name: string;
+  username: string;
+  role: string | null;
+  avatarUrl: string | null;
+}
+
+interface SubmitterInfo {
+  vercelId: string;
+  name: string;
+  email: string;
+  picture: string;
+}
+
+function getSubmitterInfoFromCookie(): SubmitterInfo | null {
+  if (typeof document === "undefined") return null;
+  const cookie = document.cookie
+    .split("; ")
+    .find((row) => row.startsWith("submitter_info="));
+  if (!cookie) return null;
+  try {
+    return JSON.parse(decodeURIComponent(cookie.split("=")[1]));
+  } catch {
+    return null;
+  }
+}
 
 export default function FeedbackPage() {
+  const params = useParams();
+  const pathname = usePathname();
+  const username = params.username as string;
+
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+
   const [sentiment, setSentiment] = useState<Sentiment>(null);
   const [comment, setComment] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(true);
   const [submitterName, setSubmitterName] = useState("");
   const [submitterEmail, setSubmitterEmail] = useState("");
+  const [submitterInfo, setSubmitterInfo] = useState<SubmitterInfo | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  useEffect(() => {
+    // Check for submitter info cookie
+    const info = getSubmitterInfoFromCookie();
+    if (info) {
+      setSubmitterInfo(info);
+      setSubmitterName(info.name);
+      setSubmitterEmail(info.email);
+      setIsAnonymous(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetch(`/api/users/${username}`)
+      .then((res) => {
+        if (!res.ok) {
+          setNotFound(true);
+          return null;
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (data?.user) {
+          setUser(data.user);
+        }
+        setLoading(false);
+      })
+      .catch(() => {
+        setNotFound(true);
+        setLoading(false);
+      });
+  }, [username]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!sentiment || !comment.trim()) return;
+    if (!sentiment || !comment.trim() || !user) return;
 
     setIsSubmitting(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsSubmitted(true);
-    setIsSubmitting(false);
+    try {
+      const res = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipientUsername: user.username,
+          sentiment,
+          comment,
+          isAnonymous,
+          submitterName: isAnonymous ? null : submitterName,
+          submitterEmail: isAnonymous ? null : submitterEmail,
+          submitterVercelId: isAnonymous ? null : submitterInfo?.vercelId,
+        }),
+      });
+
+      if (res.ok) {
+        setIsSubmitted(true);
+      }
+    } catch (error) {
+      console.error("Failed to submit feedback:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-foreground border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (notFound || !user) {
+    return <NotFoundState />;
+  }
+
   if (isSubmitted) {
-    return <SuccessState userName={mockUser.name} />;
+    return <SuccessState userName={user.name} />;
   }
 
   return (
@@ -76,15 +168,15 @@ export default function FeedbackPage() {
             <Card className="animate-fade-in">
               <div className="flex items-center gap-4">
                 <Avatar
-                  src={mockUser.avatarUrl}
-                  alt={mockUser.name}
+                  src={user.avatarUrl || undefined}
+                  alt={user.name}
                   size="xl"
                 />
                 <div>
                   <h1 className="text-xl font-semibold text-foreground">
-                    {mockUser.name}
+                    {user.name}
                   </h1>
-                  <p className="text-sm text-muted">{mockUser.role}</p>
+                  <p className="text-sm text-muted">{user.role || "Vercel Employee"}</p>
                   <p className="text-xs text-muted mt-1">at Vercel</p>
                 </div>
               </div>
@@ -96,7 +188,7 @@ export default function FeedbackPage() {
                 Share your feedback
               </h2>
               <p className="text-sm text-muted mb-6">
-                How was your experience working with {mockUser.name.split(" ")[0]}?
+                How was your experience working with {user.name.split(" ")[0]}?
               </p>
 
               {/* Sentiment Selector */}
@@ -153,40 +245,59 @@ export default function FeedbackPage() {
               {/* Identity Fields (when not anonymous) */}
               {!isAnonymous && (
                 <div className="space-y-4 mb-6 animate-fade-in">
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="flex-1 border-t border-border" />
-                    <span className="text-xs text-muted">or identify yourself</span>
-                    <div className="flex-1 border-t border-border" />
-                  </div>
+                  {submitterInfo ? (
+                    /* Signed in with Vercel */
+                    <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card-hover">
+                      <Avatar
+                        src={submitterInfo.picture || undefined}
+                        alt={submitterInfo.name}
+                        size="sm"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {submitterInfo.name}
+                        </p>
+                        <p className="text-xs text-muted truncate">
+                          {submitterInfo.email}
+                        </p>
+                      </div>
+                      <span className="text-xs text-success">Verified</span>
+                    </div>
+                  ) : (
+                    /* Sign in or manual entry */
+                    <>
+                      <a href={`/api/auth/submitter/login?returnTo=${encodeURIComponent(pathname)}`}>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          className="w-full gap-2"
+                        >
+                          <VercelLogo className="w-4 h-4" />
+                          Sign in with Vercel
+                        </Button>
+                      </a>
 
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="w-full gap-2"
-                  >
-                    <VercelLogo className="w-4 h-4" />
-                    Sign in with Vercel
-                  </Button>
+                      <div className="flex items-center gap-4">
+                        <div className="flex-1 border-t border-border" />
+                        <span className="text-xs text-muted">or enter manually</span>
+                        <div className="flex-1 border-t border-border" />
+                      </div>
 
-                  <div className="flex items-center gap-4 my-4">
-                    <div className="flex-1 border-t border-border" />
-                    <span className="text-xs text-muted">or enter manually</span>
-                    <div className="flex-1 border-t border-border" />
-                  </div>
-
-                  <Input
-                    label="Your name"
-                    placeholder="John Doe"
-                    value={submitterName}
-                    onChange={(e) => setSubmitterName(e.target.value)}
-                  />
-                  <Input
-                    label="Your email"
-                    type="email"
-                    placeholder="john@company.com"
-                    value={submitterEmail}
-                    onChange={(e) => setSubmitterEmail(e.target.value)}
-                  />
+                      <Input
+                        label="Your name (optional)"
+                        placeholder="John Doe"
+                        value={submitterName}
+                        onChange={(e) => setSubmitterName(e.target.value)}
+                      />
+                      <Input
+                        label="Your email (optional)"
+                        type="email"
+                        placeholder="john@company.com"
+                        value={submitterEmail}
+                        onChange={(e) => setSubmitterEmail(e.target.value)}
+                      />
+                    </>
+                  )}
                 </div>
               )}
 
@@ -260,6 +371,27 @@ function SentimentButton({
   );
 }
 
+function NotFoundState() {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6">
+      <div className="text-center max-w-md">
+        <h1 className="text-2xl font-bold text-foreground mb-2">
+          User not found
+        </h1>
+        <p className="text-muted mb-8">
+          This feedback link doesn&apos;t exist or the user has been removed.
+        </p>
+        <Link href="/">
+          <Button variant="secondary" className="gap-2">
+            <VercelLogo className="w-4 h-4" />
+            Go to homepage
+          </Button>
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 function SuccessState({ userName }: { userName: string }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6">
@@ -272,17 +404,10 @@ function SuccessState({ userName }: { userName: string }) {
         <h1 className="text-2xl font-bold text-foreground mb-2">
           Thank you!
         </h1>
-        <p className="text-muted mb-8">
+        <p className="text-muted">
           Your feedback has been sent to {userName}. They&apos;ll really appreciate
           you taking the time to share your thoughts.
         </p>
-
-        <Link href="/">
-          <Button variant="secondary" className="gap-2">
-            <VercelLogo className="w-4 h-4" />
-            Learn more about Feedback Links
-          </Button>
-        </Link>
       </div>
     </div>
   );

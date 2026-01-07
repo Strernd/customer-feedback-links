@@ -3,12 +3,35 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { VercelLogo, ArrowRight } from "@/components/ui/icons";
 
-export default function LoginPage() {
+export default function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  return <LoginContent searchParams={searchParams} />;
+}
+
+async function LoginContent({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const params = await searchParams;
+  const error = params.error;
+
+  const errorMessages: Record<string, string> = {
+    oauth_error: "OAuth authentication failed. Please try again.",
+    invalid_state: "Invalid authentication state. Please try again.",
+    token_exchange: "Failed to complete authentication. Please try again.",
+    user_info: "Could not retrieve your profile. Please try again.",
+    unauthorized: "This tool is only available for Vercel employees.",
+    server_error: "An unexpected error occurred. Please try again.",
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Background effects */}
       <div className="fixed inset-0 bg-gradient-to-br from-accent/5 via-transparent to-transparent" />
-      <div className="fixed top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-accent/10 rounded-full blur-[100px] opacity-20" />
 
       {/* Header */}
       <header className="relative z-10 p-6">
@@ -36,17 +59,31 @@ export default function LoginPage() {
             <h1 className="text-2xl font-bold text-foreground mb-2">
               Welcome back
             </h1>
-            <p className="text-sm text-muted mb-8">
+            <p className="text-sm text-muted mb-6">
               Sign in with your Vercel account to manage your feedback links
             </p>
 
+            {/* Error message */}
+            {error && (
+              <div className="mb-6 p-3 rounded-lg bg-error-bg border border-error/20 text-sm text-error">
+                {errorMessages[error] || "An error occurred. Please try again."}
+              </div>
+            )}
+
             {/* Sign in button */}
-            <Link href="/dashboard">
-              <Button size="lg" className="w-full gap-2.5 mb-4">
+            <a href="/api/auth/login">
+              <Button size="lg" className="w-full gap-2.5">
                 <VercelLogo className="w-4 h-4" />
                 Sign in with Vercel
               </Button>
-            </Link>
+            </a>
+
+            {/* Logout / switch account */}
+            <a href="/api/auth/logout" className="block mt-3">
+              <Button variant="ghost" size="sm" className="w-full text-muted">
+                Sign out / Switch account
+              </Button>
+            </a>
 
             {/* Divider */}
             <div className="relative my-6">
@@ -54,7 +91,7 @@ export default function LoginPage() {
                 <div className="w-full border-t border-border" />
               </div>
               <div className="relative flex justify-center text-xs">
-                <span className="px-2 bg-card text-muted">or</span>
+                <span className="px-2 bg-card text-muted">note</span>
               </div>
             </div>
 
@@ -62,7 +99,9 @@ export default function LoginPage() {
             <p className="text-xs text-muted leading-relaxed">
               This tool is exclusively for Vercel employees.
               <br />
-              You&apos;ll need a <span className="text-foreground">@vercel.com</span> email to sign in.
+              You&apos;ll need a{" "}
+              <span className="text-foreground">@vercel.com</span> email to sign
+              in.
             </p>
           </Card>
 
