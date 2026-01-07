@@ -50,5 +50,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default function FeedbackLayout({ children }: Props) {
-  return children;
+  return (
+    <>
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `
+            (function() {
+              // Force system theme on feedback pages (ignore localStorage)
+              document.documentElement.dataset.forceSystemTheme = 'true';
+              document.documentElement.classList.remove('light', 'dark');
+              const resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+              document.documentElement.classList.add(resolved);
+            })();
+          `,
+        }}
+      />
+      {children}
+    </>
+  );
 }

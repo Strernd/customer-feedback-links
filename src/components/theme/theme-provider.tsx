@@ -29,9 +29,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     if (!mounted) return;
 
     const root = document.documentElement;
+
+    // Check if this page forces system theme (e.g., feedback pages)
+    const forceSystem = root.dataset.forceSystemTheme === "true";
+
     let resolved: "light" | "dark";
 
-    if (theme === "system") {
+    if (forceSystem || theme === "system") {
       resolved = window.matchMedia("(prefers-color-scheme: dark)").matches
         ? "dark"
         : "light";
@@ -42,11 +46,20 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setResolvedTheme(resolved);
     root.classList.remove("light", "dark");
     root.classList.add(resolved);
-    localStorage.setItem("theme", theme);
+
+    // Don't save theme preference on forced system theme pages
+    if (!forceSystem) {
+      localStorage.setItem("theme", theme);
+    }
   }, [theme, mounted]);
 
   useEffect(() => {
-    if (!mounted || theme !== "system") return;
+    if (!mounted) return;
+
+    const forceSystem = document.documentElement.dataset.forceSystemTheme === "true";
+
+    // Listen for system theme changes when using system theme or on forced pages
+    if (!forceSystem && theme !== "system") return;
 
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const handleChange = (e: MediaQueryListEvent) => {

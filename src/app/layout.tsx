@@ -30,11 +30,21 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
+                // Feedback pages always use system theme (ignore localStorage)
+                const isFeedbackPage = window.location.pathname.startsWith('/feedback/');
+                const systemResolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+
+                if (isFeedbackPage) {
+                  document.documentElement.dataset.forceSystemTheme = 'true';
+                  document.documentElement.classList.add(systemResolved);
+                  return;
+                }
+
                 const stored = localStorage.getItem('theme');
                 const theme = stored || 'system';
                 let resolved = theme;
                 if (theme === 'system') {
-                  resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                  resolved = systemResolved;
                 }
                 document.documentElement.classList.add(resolved);
               })();
