@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Customer Feedback Links
 
-## Getting Started
+Internal tool for Vercelians to collect anonymous customer feedback via personalized links.
 
-First, run the development server:
+## Features
+
+- **Sign in with Vercel** - Vercelians authenticate with their Vercel account
+- **Personalized feedback links** - Each Vercelian gets a unique `/feedback/[username]` URL
+- **Email signature snippets** - Copy-paste HTML links for Gmail signatures
+- **Anonymous by default** - Customers can optionally identify themselves or sign in with Vercel
+- **Sentiment tracking** - Positive, neutral, or negative feedback with comments
+
+## Setup
+
+### 1. Create a Vercel OAuth Application
+
+1. Go to [Vercel Dashboard](https://vercel.com/account/oauth-apps) → Account Settings → OAuth Applications
+2. Click **Create Application**
+3. Fill in the details:
+   - **Name**: Customer Feedback Links
+   - **Redirect URIs**:
+     - `http://localhost:3000/api/auth/callback` (development)
+     - `http://localhost:3000/api/auth/submitter/callback` (development)
+     - `https://your-domain.vercel.app/api/auth/callback` (production)
+     - `https://your-domain.vercel.app/api/auth/submitter/callback` (production)
+4. Under **Grant Types**, ensure **Authorization Code** is checked
+5. Under **Permissions → Scopes**, enable:
+   - `openid`
+   - `email`
+   - `profile`
+6. Save and copy the **Client ID** and **Client Secret**
+
+### 2. Create a Neon Database
+
+1. Go to [Neon](https://neon.tech) and create a new project
+2. Copy the connection string
+
+### 3. Configure Environment Variables
+
+Create `.env.local` for local development:
+
+```env
+VERCEL_CLIENT_ID=cl_xxxxxxxxxx
+VERCEL_CLIENT_SECRET=xxxxxxxxxxxxxxxx
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+DATABASE_URL=postgres://user:pass@host/db?sslmode=require
+```
+
+For production, add these same variables in your Vercel project settings.
+
+### 4. Set Up the Database
+
+```bash
+npm install
+npm run db:push
+```
+
+### 5. Run the App
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Scripts
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start development server |
+| `npm run build` | Build for production |
+| `npm run db:push` | Push schema to database |
+| `npm run db:studio` | Open Drizzle Studio (database GUI) |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Tech Stack
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [Next.js 14](https://nextjs.org) - React framework
+- [Drizzle ORM](https://orm.drizzle.team) - Database ORM
+- [Neon](https://neon.tech) - Serverless Postgres
+- [Tailwind CSS](https://tailwindcss.com) - Styling
+- [Sign in with Vercel](https://vercel.com/docs/security/sign-in-with-vercel) - Authentication
