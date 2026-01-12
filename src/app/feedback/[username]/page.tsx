@@ -9,6 +9,8 @@ import { Avatar } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Toggle } from "@/components/ui/toggle";
+import { FeedbackPageSkeleton } from "@/components/ui/skeleton";
+import { useMinimumLoadingTime } from "@/hooks";
 import {
   VercelLogo,
   ThumbsUp,
@@ -64,7 +66,8 @@ export default function FeedbackPage() {
   const [submitterEmail, setSubmitterEmail] = useState("");
   const [submitterInfo, setSubmitterInfo] = useState<SubmitterInfo | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [validationError, setValidationError] = useState<string>("");
+  const { isLoading, withMinimumLoading } = useMinimumLoadingTime();
 
   useEffect(() => {
     // Check for submitter info cookie
@@ -100,40 +103,51 @@ export default function FeedbackPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!sentiment || !comment.trim() || !user) return;
+    setValidationError("");
 
-    setIsSubmitting(true);
-    try {
-      const res = await fetch("/api/feedback", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          recipientUsername: user.username,
-          sentiment,
-          comment,
-          isAnonymous,
-          submitterName: isAnonymous ? null : submitterName,
-          submitterEmail: isAnonymous ? null : submitterEmail,
-          submitterVercelId: isAnonymous ? null : submitterInfo?.vercelId,
-        }),
-      });
-
-      if (res.ok) {
-        setIsSubmitted(true);
-      }
-    } catch (error) {
-      console.error("Failed to submit feedback:", error);
-    } finally {
-      setIsSubmitting(false);
+    // Validation
+    if (!sentiment) {
+      setValidationError("Please select how you would rate your experience");
+      return;
     }
+
+    if (!comment.trim()) {
+      setValidationError("Please share your feedback");
+      return;
+    }
+
+    if (!user) return;
+
+    await withMinimumLoading(async () => {
+      try {
+        const res = await fetch("/api/feedback", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            recipientUsername: user.username,
+            sentiment,
+            comment,
+            isAnonymous,
+            submitterName: isAnonymous ? null : submitterName,
+            submitterEmail: isAnonymous ? null : submitterEmail,
+            submitterVercelId: isAnonymous ? null : submitterInfo?.vercelId,
+          }),
+        });
+
+        if (res.ok) {
+          setIsSubmitted(true);
+        } else {
+          setValidationError("Failed to submit feedback. Please try again.");
+        }
+      } catch (error) {
+        console.error("Failed to submit feedback:", error);
+        setValidationError("Failed to submit feedback. Please try again.");
+      }
+    });
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-foreground border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+    return <FeedbackPageSkeleton />;
   }
 
   if (notFound || !user) {
@@ -228,6 +242,12 @@ export default function FeedbackPage() {
                   placeholder="Share specific details about your experience..."
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
+                  onKeyDown={(e) => {
+                    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                      e.preventDefault();
+                      handleSubmit(e as any);
+                    }
+                  }}
                   className="min-h-[140px]"
                 />
               </div>
@@ -277,7 +297,7 @@ export default function FeedbackPage() {
                         </Button>
                       </a>
 
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-4 pt-2">
                         <div className="flex-1 border-t border-border" />
                         <span className="text-xs text-muted">or enter manually</span>
                         <div className="flex-1 border-t border-border" />
@@ -285,6 +305,8 @@ export default function FeedbackPage() {
 
                       <Input
                         label="Your name (optional)"
+                        name="name"
+                        autoComplete="name"
                         placeholder="John Doe"
                         value={submitterName}
                         onChange={(e) => setSubmitterName(e.target.value)}
@@ -292,6 +314,9 @@ export default function FeedbackPage() {
                       <Input
                         label="Your email (optional)"
                         type="email"
+                        name="email"
+                        autoComplete="email"
+                        spellCheck={false}
                         placeholder="john@company.com"
                         value={submitterEmail}
                         onChange={(e) => setSubmitterEmail(e.target.value)}
@@ -302,16 +327,24 @@ export default function FeedbackPage() {
               )}
 
               {/* Submit Button */}
-              <Button
-                type="submit"
-                size="lg"
-                className="w-full gap-2"
-                disabled={!sentiment || !comment.trim()}
-                isLoading={isSubmitting}
-              >
-                <Send className="w-4 h-4" />
-                Submit Feedback
-              </Button>
+              <div className="space-y-4">
+                {/* Validation Error */}
+                {validationError && (
+                  <div className="p-3 bg-error-bg border border-error/20 rounded-lg animate-fade-in">
+                    <p className="text-sm text-error font-medium">{validationError}</p>
+                  </div>
+                )}
+
+                <Button
+                  type="submit"
+                  size="lg"
+                  className="w-full gap-2"
+                  isLoading={isLoading}
+                >
+                  <Send className="w-4 h-4" />
+                  Submit Feedback
+                </Button>
+              </div>
             </Card>
 
             {/* Privacy Notice */}

@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { DashboardPageSkeleton } from "@/components/ui/skeleton";
 import {
   Copy,
   Check,
@@ -93,11 +94,7 @@ export default function DashboardPage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-foreground border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+    return <DashboardPageSkeleton />;
   }
 
   return (

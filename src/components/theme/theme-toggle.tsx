@@ -47,16 +47,18 @@ export function ThemeToggle() {
           <button
             key={option.value}
             onClick={() => setTheme(option.value)}
+            aria-label={`Switch to ${option.label.toLowerCase()} theme`}
+            title={option.label}
             className={`
-              p-1.5 rounded-md transition-all duration-150
+              p-2 md:p-1.5 rounded-md transition-colors duration-150
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-card
               ${isActive
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted hover:text-foreground"
               }
             `}
-            title={option.label}
           >
-            <Icon className="w-4 h-4" />
+            <Icon className="w-5 h-5 md:w-4 md:h-4" />
           </button>
         );
       })}

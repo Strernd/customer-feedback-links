@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
+import { DashboardPageSkeleton } from "@/components/ui/skeleton";
 import { Copy, Check, LogOut, Mail } from "@/components/ui/icons";
 
 interface User {
@@ -98,11 +99,7 @@ export default function SettingsPage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-foreground border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+    return <DashboardPageSkeleton />;
   }
 
   return (
