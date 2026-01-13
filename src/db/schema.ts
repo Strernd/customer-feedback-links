@@ -3,17 +3,8 @@ import {
   text,
   timestamp,
   uuid,
-  boolean,
-  pgEnum,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
-
-// Enums
-export const sentimentEnum = pgEnum("sentiment", [
-  "positive",
-  "neutral",
-  "negative",
-]);
 
 // Users table - Vercelians who sign in
 export const users = pgTable("users", {
@@ -24,23 +15,11 @@ export const users = pgTable("users", {
   name: text("name").notNull(),
   avatarUrl: text("avatar_url"),
   role: text("role"),
+  slackUserId: text("slack_user_id"),
+  managerEmail: text("manager_email"),
+  managerSlackUserId: text("manager_slack_user_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-// Feedback table
-export const feedback = pgTable("feedback", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  recipientId: uuid("recipient_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  sentiment: sentimentEnum("sentiment").notNull(),
-  comment: text("comment").notNull(),
-  isAnonymous: boolean("is_anonymous").default(true).notNull(),
-  submitterName: text("submitter_name"),
-  submitterEmail: text("submitter_email"),
-  submitterVercelId: text("submitter_vercel_id"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 // Sessions table
@@ -55,15 +34,7 @@ export const sessions = pgTable("sessions", {
 
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
-  feedbackReceived: many(feedback),
   sessions: many(sessions),
-}));
-
-export const feedbackRelations = relations(feedback, ({ one }) => ({
-  recipient: one(users, {
-    fields: [feedback.recipientId],
-    references: [users.id],
-  }),
 }));
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({
@@ -76,6 +47,4 @@ export const sessionsRelations = relations(sessions, ({ one }) => ({
 // Types
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
-export type Feedback = typeof feedback.$inferSelect;
-export type NewFeedback = typeof feedback.$inferInsert;
 export type Session = typeof sessions.$inferSelect;

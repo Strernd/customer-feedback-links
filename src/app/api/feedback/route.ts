@@ -1,27 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { feedback, users } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
-import { getCurrentUser } from "@/lib/auth/session";
+import { users } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { sendFeedbackToSlack, sendFeedbackToManager } from "@/lib/slack";
 
-// GET - Fetch feedback for the current user
-export async function GET() {
-  const user = await getCurrentUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const feedbackList = await db
-    .select()
-    .from(feedback)
-    .where(eq(feedback.recipientId, user.id))
-    .orderBy(desc(feedback.createdAt));
-
-  return NextResponse.json({ feedback: feedbackList });
-}
-
-// POST - Submit new feedback
+// POST - Submit new feedback (ONLY to Slack, no DB storage)
 export async function POST(request: NextRequest) {
   const body = await request.json();
   const {
@@ -57,19 +40,48 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Recipient not found" }, { status: 404 });
   }
 
-  // Create feedback
-  const [newFeedback] = await db
-    .insert(feedback)
-    .values({
-      recipientId: recipient[0].id,
+  // Check if recipient has Slack configured
+  const slackUserId = recipient[0].slackUserId;
+
+  if (!slackUserId) {
+    console.error(
+      `No Slack configured for ${recipient[0].username} - feedback cannot be delivered`
+    );
+    return NextResponse.json(
+      { error: "Recipient has not configured Slack delivery" },
+      { status: 503 }
+    );
+  }
+
+  // Send feedback to Slack (ONLY delivery method - no DB storage)
+  try {
+    const feedbackData = {
+      recipientUsername: recipient[0].username,
+      recipientName: recipient[0].name,
       sentiment,
       comment,
       isAnonymous: isAnonymous ?? true,
       submitterName: isAnonymous ? null : submitterName,
       submitterEmail: isAnonymous ? null : submitterEmail,
-      submitterVercelId: isAnonymous ? null : submitterVercelId,
-    })
-    .returning();
+    };
 
-  return NextResponse.json({ feedback: newFeedback }, { status: 201 });
+    // Send to recipient (primary - this must succeed)
+    await sendFeedbackToSlack(slackUserId, feedbackData);
+
+    // Also send to manager if configured (secondary - allowed to fail)
+    if (recipient[0].managerSlackUserId) {
+      await sendFeedbackToManager(recipient[0].managerSlackUserId, feedbackData);
+    }
+
+    return NextResponse.json(
+      { message: "Feedback sent successfully" },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error("Failed to send feedback to Slack:", error);
+    return NextResponse.json(
+      { error: "Failed to deliver feedback. Please try again later." },
+      { status: 500 }
+    );
+  }
 }

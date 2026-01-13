@@ -338,10 +338,10 @@ export default function FeedbackPage() {
                 <Button
                   type="submit"
                   size="lg"
-                  className="w-full gap-2"
+                  className="w-full"
                   isLoading={isLoading}
                 >
-                  <Send className="w-4 h-4" />
+                  {!isLoading && <Send className="w-4 h-4" />}
                   Submit Feedback
                 </Button>
               </div>
